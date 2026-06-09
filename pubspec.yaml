@@ -1,0 +1,36 @@
+name: arkani_indopak_prototype
+description: >-
+  Prototype host app for the Arkani IndoPak Mushaf viewer
+  (lib/features/indopak_mushaf). All Quran text, layout data and fonts come
+  exclusively from QUL (https://qul.tarteel.ai) — see tool/fetch_qul_assets.sh.
+publish_to: "none"
+version: 0.1.0
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  sqflite: ^2.4.1
+  path: ^1.9.0
+  path_provider: ^2.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  # The QUL SQLite databases and the IndoPak Nastaleeq font are NOT committed
+  # to the repository. Run tool/fetch_qul_assets.sh to download them from QUL
+  # before running the app. The font is loaded at runtime with FontLoader
+  # (see lib/features/indopak_mushaf/data/indopak_font.dart), so it is
+  # intentionally not declared under `fonts:` — that keeps the build green
+  # while assets have not been fetched yet.
+  assets:
+    - assets/indopak/
+    - assets/indopak/fonts/

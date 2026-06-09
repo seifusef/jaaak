@@ -1,0 +1,88 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../application/providers.dart';
+import '../data/indopak_assets.dart';
+import 'widgets/mushaf_page_widget.dart';
+
+/// Read-only IndoPak Mushaf viewer (prototype).
+///
+/// An RTL [PageView] over the pages of the QUL "Indopak 15 lines" layout.
+/// All text comes from the bundled QUL databases; there is no bookmarks,
+/// audio or sync integration yet.
+class IndoPakMushafScreen extends ConsumerWidget {
+  const IndoPakMushafScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pageCount = ref.watch(indoPakPageCountProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('مصحف إندوباك (تجريبي)'),
+        backgroundColor: const Color(0xFFF6EFDD),
+        foregroundColor: const Color(0xFF5C4516),
+      ),
+      body: pageCount.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => _AssetsMissingView(error: error),
+        data: (count) => Directionality(
+          // RTL so swiping in the natural mushaf direction advances pages.
+          textDirection: TextDirection.rtl,
+          child: PageView.builder(
+            itemCount: count,
+            itemBuilder: (context, index) =>
+                MushafPageWidget(pageNumber: index + 1),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when the QUL assets have not been fetched (or a database is
+/// invalid). The app never substitutes Quranic text on its own.
+class _AssetsMissingView extends StatelessWidget {
+  const _AssetsMissingView({required this.error});
+
+  final Object error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.download_for_offline_outlined,
+                size: 48, color: Colors.brown),
+            const SizedBox(height: 16),
+            const Text(
+              'بيانات المصحف غير متوفرة',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+              textDirection: TextDirection.rtl,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'This prototype renders Quran text exclusively from the QUL '
+              '(qul.tarteel.ai) databases. Run tool/fetch_qul_assets.sh to '
+              'download the layout, script and font, then rebuild the app.\n\n'
+              'Expected assets:\n'
+              '• ${IndoPakAssets.layoutDb}\n'
+              '• ${IndoPakAssets.wordsDb}\n'
+              '• ${IndoPakAssets.font}',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '$error',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
