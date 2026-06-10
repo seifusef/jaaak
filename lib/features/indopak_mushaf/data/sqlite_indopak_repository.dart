@@ -1,8 +1,10 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../domain/indopak_repository.dart';
 import '../domain/models.dart';
 
-/// Read-only access to the two QUL SQLite exports:
+/// Native implementation of [IndoPakMushafRepository], reading the two QUL
+/// SQLite exports directly:
 ///
 ///  * layout DB — `pages` table (line_number, line_type, is_centered,
 ///    first_word_id, last_word_id, surah_number) from the
@@ -14,8 +16,8 @@ import '../domain/models.dart';
 /// vs `word_index`), so they are resolved once via `PRAGMA table_info`
 /// instead of being hard-coded. No Quranic text is ever produced here —
 /// every word comes straight out of the QUL words database.
-class IndoPakMushafRepository {
-  IndoPakMushafRepository._({
+class SqliteIndoPakMushafRepository implements IndoPakMushafRepository {
+  SqliteIndoPakMushafRepository._({
     required Database layoutDb,
     required Database wordsDb,
     required _PagesSchema pagesSchema,
@@ -25,13 +27,13 @@ class IndoPakMushafRepository {
         _pages = pagesSchema,
         _words = wordsSchema;
 
-  static Future<IndoPakMushafRepository> open({
+  static Future<SqliteIndoPakMushafRepository> open({
     required Database layoutDb,
     required Database wordsDb,
   }) async {
     final pagesSchema = await _PagesSchema.resolve(layoutDb);
     final wordsSchema = await _WordsSchema.resolve(wordsDb);
-    return IndoPakMushafRepository._(
+    return SqliteIndoPakMushafRepository._(
       layoutDb: layoutDb,
       wordsDb: wordsDb,
       pagesSchema: pagesSchema,
@@ -47,7 +49,14 @@ class IndoPakMushafRepository {
   List<MushafWord>? _basmallahCache;
   Map<int, String>? _surahNamesCache;
 
+  @override
+  Future<void> dispose() async {
+    await _layoutDb.close();
+    await _wordsDb.close();
+  }
+
   /// Number of pages in the layout (610 for the IndoPak 15-line mushaf).
+  @override
   Future<int> getPageCount() async {
     final rows = await _layoutDb
         .rawQuery('SELECT MAX(${_pages.page}) AS max_page FROM pages');
@@ -56,6 +65,7 @@ class IndoPakMushafRepository {
     throw StateError('QUL layout database has no pages.');
   }
 
+  @override
   Future<MushafPage> getPage(int pageNumber) async {
     final rows = await _layoutDb.query(
       'pages',
@@ -125,6 +135,7 @@ class IndoPakMushafRepository {
   /// (`chapters` or `surahs`) with an Arabic name column. Returns an empty
   /// map otherwise — the UI then falls back to the surah number. Names are
   /// never hard-coded in the app.
+  @override
   Future<Map<int, String>> getSurahNames() async {
     if (_surahNamesCache != null) return _surahNamesCache!;
     for (final db in [_layoutDb, _wordsDb]) {

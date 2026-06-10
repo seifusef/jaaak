@@ -17,6 +17,11 @@ class IndoPakAssets {
   /// QUL IndoPak Nastaleeq font (Hanafi), loaded at runtime via FontLoader.
   static const String font = 'assets/indopak/fonts/indopak_nastaleeq.ttf';
 
+  /// Compact JSON generated at build time from the two QUL SQLite exports
+  /// by `tool/convert_qul_to_json.py` (used by the web build, where SQLite
+  /// is unavailable).
+  static const String mushafJson = 'assets/indopak/mushaf_data.json';
+
   /// Family name registered by [loadIndoPakFont].
   static const String fontFamily = 'IndoPakNastaleeq';
 }

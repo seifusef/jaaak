@@ -9,12 +9,17 @@ build/
 *.iml
 .idea/
 
-# Platform runner folders are generated with `flutter create .`
-# and may be committed later if desired.
+# Platform runner folders (web/ index.html is committed; the rest of web/
+# plus android/ios/etc. are generated with `flutter create .`).
+android/
+ios/
+linux/
+macos/
+windows/
+web/*
+!web/index.html
 
-# QUL data assets are downloaded, not committed (see tool/fetch_qul_assets.sh).
-assets/indopak/*.db
-assets/indopak/*.sqlite
-assets/indopak/fonts/*.ttf
-assets/indopak/fonts/*.woff
-assets/indopak/fonts/*.woff2
+# QUL data files MAY be committed to assets/indopak/ (simplest path for the
+# GitHub Pages workflow) or downloaded by tool/fetch_qul_assets.sh.
+# The web JSON asset is always generated at build time — never commit it.
+assets/indopak/mushaf_data.json

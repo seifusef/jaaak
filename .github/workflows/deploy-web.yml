@@ -1,0 +1,104 @@
+name: Deploy IndoPak Mushaf web prototype
+
+# Builds the Flutter web prototype and deploys it to GitHub Pages.
+#
+# DATA POLICY: all Quran text/layout/fonts come exclusively from QUL
+# (https://qul.tarteel.ai). If the QUL assets cannot be obtained or fail
+# validation, the build FAILS LOUDLY — it never ships placeholder text.
+#
+# QUL serves its SQLite exports to signed-in users, so the workflow obtains
+# the two databases from (in order):
+#   1. files committed to assets/indopak/ (indopak_15_lines_layout.db,
+#      indopak_words.db) — simplest;
+#   2. direct download URLs in repo Actions variables QUL_LAYOUT_URL /
+#      QUL_WORDS_URL (or workflow_dispatch inputs).
+# The Nastaleeq font is fetched anonymously from the official QUL CDN
+# (static-cdn.tarteel.ai).
+
+on:
+  push:
+    branches:
+      - claude/indopak-mushaf-prototype-q1dpg1
+  workflow_dispatch:
+    inputs:
+      layout_url:
+        description: 'Direct URL to the QUL "Indopak 15 lines" layout SQLite export'
+        required: false
+        default: ''
+      words_url:
+        description: 'Direct URL to the QUL IndoPak word-by-word SQLite export'
+        required: false
+        default: ''
+      font_url:
+        description: 'Override URL for the IndoPak Nastaleeq font (Hanafi)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter (stable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate web platform files
+        # Keeps the committed web/index.html (viewport for mobile Safari)
+        # and only adds the missing template files.
+        run: flutter create . --platforms=web
+
+      - name: Fetch QUL assets (QUL is the only permitted data source)
+        env:
+          LAYOUT_URL: ${{ github.event.inputs.layout_url || vars.QUL_LAYOUT_URL }}
+          WORDS_URL: ${{ github.event.inputs.words_url || vars.QUL_WORDS_URL }}
+          FONT_URL: ${{ github.event.inputs.font_url || vars.QUL_FONT_URL }}
+        run: bash tool/fetch_qul_assets.sh
+
+      - name: Validate QUL data and convert to web JSON
+        # Pure transformation of the QUL SQLite exports; aborts the build on
+        # any missing/empty data. Never generates Quran text.
+        run: python3 tool/convert_qul_to_json.py
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build Flutter web (CanvasKit renderer)
+        # The SQLite files are only needed by native builds and by the JSON
+        # conversion above — drop them from the web asset bundle.
+        run: |
+          rm -f assets/indopak/*.db assets/indopak/*.sqlite
+          flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

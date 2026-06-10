@@ -41,7 +41,12 @@ WORDS_URL="${WORDS_URL:-}"
 
 download() { # url dest
   echo "Downloading $1"
-  curl -fL --retry 3 -o "$2" "$1"
+  if ! curl -fL --retry 3 -o "$2" "$1"; then
+    rm -f "$2"
+    echo "DOWNLOAD FAILED: $1" >&2
+    echo "Refusing to continue — Quran data must come from QUL and is never substituted." >&2
+    exit 1
+  fi
 }
 
 check_sqlite_table() { # file table
@@ -74,10 +79,14 @@ elif [[ -n "$LAYOUT_URL" ]]; then
 else
   cat >&2 <<'EOF'
 MISSING: Indopak 15 lines layout database.
-  1. Open https://qul.tarteel.ai/resources/mushaf-layout
-  2. Pick "Indopak 15 lines" and export/download as SQLite
-  3. Either save it as assets/indopak/indopak_15_lines_layout.db
-     or re-run with LAYOUT_URL=<copied download link>
+  NOTE: QUL serves SQLite exports to signed-in users (free account).
+  1. Sign in at https://qul.tarteel.ai, open
+     https://qul.tarteel.ai/resources/mushaf-layout
+  2. Pick "Indopak 15 lines" and download the SQLite export
+  3. Then EITHER commit the file as
+       assets/indopak/indopak_15_lines_layout.db
+     (e.g. upload via the GitHub web UI), OR set a direct file URL in the
+     repo Actions variable QUL_LAYOUT_URL / env LAYOUT_URL and re-run.
 EOF
   MISSING=1
 fi
@@ -90,10 +99,14 @@ elif [[ -n "$WORDS_URL" ]]; then
 else
   cat >&2 <<'EOF'
 MISSING: IndoPak word-by-word script database.
-  1. Open https://qul.tarteel.ai/resources/quran-script (IndoPak, word by word)
+  NOTE: QUL serves SQLite exports to signed-in users (free account).
+  1. Sign in at https://qul.tarteel.ai, open
+     https://qul.tarteel.ai/resources/quran-script (IndoPak, word by word)
   2. Download the SQLite export
-  3. Either save it as assets/indopak/indopak_words.db
-     or re-run with WORDS_URL=<copied download link>
+  3. Then EITHER commit the file as
+       assets/indopak/indopak_words.db
+     (e.g. upload via the GitHub web UI), OR set a direct file URL in the
+     repo Actions variable QUL_WORDS_URL / env WORDS_URL and re-run.
 EOF
   MISSING=1
 fi

@@ -38,7 +38,47 @@ LAYOUT_URL=... WORDS_URL=... tool/fetch_qul_assets.sh
 The script validates that the downloads contain the expected `pages` /
 `words` tables before accepting them.
 
-## Running
+## Try it on a phone — GitHub Pages (Flutter web)
+
+Every push to `claude/indopak-mushaf-prototype-q1dpg1` runs
+[`.github/workflows/deploy-web.yml`](.github/workflows/deploy-web.yml),
+which builds the Flutter **web** version (CanvasKit renderer) and deploys it
+to GitHub Pages:
+
+**→ https://seifusef.github.io/jaaak/**
+
+### One-time data provisioning (required)
+
+QUL serves its SQLite exports to **signed-in** users (free account), so the
+workflow cannot download them anonymously — it *fails loudly* until you
+provide them one of these ways:
+
+1. **Commit the files (easiest, works from an iPhone):**
+   - In Safari, sign in at [qul.tarteel.ai](https://qul.tarteel.ai) and
+     download:
+     - the **"Indopak 15 lines"** layout SQLite from
+       [resources/mushaf-layout](https://qul.tarteel.ai/resources/mushaf-layout)
+     - the **IndoPak word-by-word** script SQLite from
+       [resources/quran-script](https://qul.tarteel.ai/resources/quran-script)
+   - On github.com (request desktop site), open `assets/indopak/` →
+     **Add file → Upload files**, and upload them named exactly:
+     - `indopak_15_lines_layout.db`
+     - `indopak_words.db`
+   - Committing triggers the deploy automatically.
+2. **Or set repo Actions variables** `QUL_LAYOUT_URL` / `QUL_WORDS_URL`
+   (Settings → Secrets and variables → Actions → Variables) to direct file
+   URLs, then re-run the workflow (it also accepts the URLs as
+   `workflow_dispatch` inputs).
+
+The Nastaleeq font is fetched automatically from the official QUL CDN
+(`static-cdn.tarteel.ai`). On web, the two SQLite files are converted at
+build time into `assets/indopak/mushaf_data.json` by
+[`tool/convert_qul_to_json.py`](tool/convert_qul_to_json.py) — a pure,
+validated transformation (sqflite does not run in browsers); native builds
+keep reading the SQLite files directly. If the data is missing or fails
+validation, the build aborts — it never ships placeholder text.
+
+## Running natively
 
 ```bash
 flutter create . --platforms=android,ios   # one-time: generate platform runners
@@ -59,9 +99,13 @@ lib/features/indopak_mushaf/
 ├── data/
 │   ├── indopak_assets.dart           Asset paths + missing-assets exception
 │   ├── indopak_font.dart             Runtime FontLoader for the QUL Nastaleeq font
-│   ├── indopak_database.dart         Copies asset DBs to app storage, opens read-only
-│   └── indopak_mushaf_repository.dart  Queries pages/words; resolves QUL column-name variants
-├── domain/models.dart                MushafPage / MushafLine / MushafWord / line types
+│   ├── indopak_database.dart         Copies asset DBs to app storage, opens read-only (native)
+│   ├── sqlite_indopak_repository.dart  Native impl: queries pages/words; resolves QUL column variants
+│   ├── json_indopak_repository.dart  Web impl: reads the build-time JSON conversion of the QUL data
+│   └── repository_loader_io.dart / repository_loader_web.dart  Conditional platform wiring
+├── domain/
+│   ├── indopak_repository.dart       Repository interface (page count / page / surah names)
+│   └── models.dart                   MushafPage / MushafLine / MushafWord / line types
 └── presentation/
     ├── indopak_mushaf_screen.dart    RTL PageView over all pages (per layout DB count)
     └── widgets/
